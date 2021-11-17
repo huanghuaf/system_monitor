@@ -105,7 +105,7 @@ int process_one_line(char *path, void (*cb)(char *line, void *data), void *data)
 	return ret;
 }
 
-static void parse_online_cpu_info(char *path)
+static void parse_online_cpufreq_info(char *path)
 {
 	int offline_status = 0;
 	int cpu_num = -1;
@@ -120,6 +120,8 @@ static void parse_online_cpu_info(char *path)
 		return;
 
 	cpu_num = strtoul(&path[27], NULL, 10);
+
+
 	cpu_set(cpu_num, cpu_online_map);
 
 	/* get online cpufreq */
@@ -140,12 +142,16 @@ static int parse_cpu_info(void)
 {
 	char new_path[PATH_MAX];
 	int i;
+
+	/* Must clear all mask for cpu hotplug */
+	cpus_clear(cpu_online_map);
+
 	for (i = 0; i < systeminfo.nr_cpus; i++) {
 		snprintf(new_path, PATH_MAX, "/sys/devices/system/cpu/cpu%d", i);
 #ifdef DEBUG
 		printf("path:%s, i:%d\n", new_path, i);
 #endif
-		parse_online_cpu_info(new_path);
+		parse_online_cpufreq_info(new_path);
 	}
 }
 
