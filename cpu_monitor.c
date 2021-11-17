@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <errno.h>
+#include <time.h>
 
 #include "cpumask.h"
 #include "cpu_monitor.h"
@@ -28,7 +29,7 @@ static int interval = 1;	//default 1 seconds
 static int count = 0;		//no limit
 cpumask_t cpu_online_map;	//cpu status, online or offline
 
-static struct systeminfo systeminfo;
+static Systeminfo systeminfo;
 static void usage(void)
 {
 	printf("cpu_monitor 11/16/2021. (c) 2021 huafenghuang/(c).\n\n"
@@ -187,13 +188,13 @@ static int init_systeminfo_struct(struct systeminfo *systeminfo)
 			return -EINVAL;
 		}
 	}
-/*
-	systeminfo->status = (unsigned int *)malloc(systeminfo->nr_cpus * sizeof(unsigned int));
-	if (!systeminfo->status) {
+
+	systeminfo->cpu_rate = (unsigned int *)malloc(systeminfo->nr_cpus * sizeof(unsigned int));
+	if (!systeminfo->cpu_rate) {
 		printf("alloc mem for systeminfo status failed\n");
 		return -ENOMEM;
 	}
-*/
+
 	systeminfo->cpufreq = (unsigned int *)malloc(systeminfo->nr_cpus * sizeof(unsigned int));
 	if (!systeminfo->cpufreq) {
 		printf("alloc mem for systeminfo cpufreq failed\n");
@@ -228,8 +229,11 @@ static void display_system_info(void)
 int main(int argc, char *argv[])
 {
 	int ret = 0;
+	struct timespec tv;
 
 	parse_command_line(argc, argv);
+	tv.tv_sec = interval;
+	tv.tv_nsec = 0;
 #ifdef DEBUG
 	printf("interval:%d, count=%d\n", interval, count);
 #endif
@@ -251,7 +255,7 @@ int main(int argc, char *argv[])
 			if (--count == 0)
 				break;
 		}
-		sleep(interval);
+		nanosleep(&tv, NULL);
 	}
 	return 0;
 }

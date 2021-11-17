@@ -7,12 +7,12 @@
 #define ADJ_SIZE(l,r,s) l-strlen(r)-strlen(#s) 
 #define LINE_BUF_SIZE	1024
 
-struct systeminfo {
+typedef struct systeminfo {
 	unsigned int *cpufreq;		//cpu current freq info
 	unsigned int nr_cpus;		//total cpus num
 	unsigned int cpu_temp;
 	unsigned int gpu_temp;
-	unsigned int cpu_rate;
-};
+	unsigned int *cpu_rate;
+}Systeminfo;
 
 #endif
