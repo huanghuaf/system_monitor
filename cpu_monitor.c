@@ -29,7 +29,7 @@ static int interval = 1;	//default 1 seconds
 static int count = 0;		//no limit
 cpumask_t cpu_online_map;	//cpu status, online or offline
 
-static Systeminfo systeminfo;
+static Systeminfo_t systeminfo;
 static void usage(void)
 {
 	printf("cpu_monitor 11/16/2021. (c) 2021 huafenghuang/(c).\n\n"
@@ -84,6 +84,12 @@ static void get_cpufreq(char *line, void *data)
 {
 	unsigned int *cpufreq = (unsigned int *)data;
 	*cpufreq = strtoul(line, NULL, 10);
+}
+
+static void get_temp(char *line, void *data)
+{
+	unsigned int *temp = (unsigned int *)data;
+	*temp = strtoul(line, NULL, 10);
 }
 
 int process_one_line(char *path, void (*cb)(char *line, void *data), void *data)
@@ -148,12 +154,91 @@ static int parse_cpu_info(void)
 	cpus_clear(cpu_online_map);
 
 	for (i = 0; i < systeminfo.nr_cpus; i++) {
+		/* Fix me, use macro instead of str */
 		snprintf(new_path, PATH_MAX, "/sys/devices/system/cpu/cpu%d", i);
 #ifdef DEBUG
 		printf("path:%s, i:%d\n", new_path, i);
 #endif
 		parse_online_cpufreq_info(new_path);
 	}
+	return 0;
+}
+
+static int parse_master_tempinfo(char *path)
+{
+	char new_path[PATH_MAX];
+	FILE *file;
+	char *line = NULL;
+	size_t size = 0;
+	unsigned int temp;
+	int ret = 0;
+
+	snprintf(new_path, ADJ_SIZE(PATH_MAX, path, "/type"), "%s/type", path);
+
+	file = fopen(new_path, "r");
+	if (!file) {
+		printf("No such file:%s", new_path);
+		return ret;
+	}
+
+	snprintf(new_path, ADJ_SIZE(PATH_MAX, path, "/temp"), "%s/temp", path);
+	if (getline(&line, &size, file) > 0) {
+		if (!strncmp(line, "cpu", strlen("cpu"))) {
+			/* CPU */
+			ret = process_one_line(new_path, get_temp, &temp);
+			if (ret < 0) {
+				printf("read cpu temprature failed\n");
+				systeminfo.cpu_temp = 0;
+			}
+			systeminfo.cpu_temp = temp;
+		} else if (!strncmp(line, "gpu", strlen("gpu"))) {
+			/* GPU */
+			ret = process_one_line(new_path, get_temp, &temp);
+			if (ret < 0) {
+				printf("read gpu temprature failed\n");
+				systeminfo.gpu_temp = 0;
+			}
+			systeminfo.gpu_temp = temp;
+		} else {
+			printf("No support the master\n");
+		}
+	}
+	fclose(file);
+#ifdef DEBUG
+	printf("cpu temp:%u, gpu temp:%u\n", systeminfo.cpu_temp, systeminfo.gpu_temp);
+#endif
+	return ret;
+}
+
+static int parse_system_master_temp_info()
+{
+	DIR *dir;
+	struct dirent *entry;
+
+	/* Get master temperature */
+	/* Fix me, use macro instead of str */
+	dir = opendir(THERMAL_PATH);
+	if (!dir) {
+		printf("Need support thermal driver\n");
+		return -EINVAL;
+	}
+		do {
+			int num;
+			char pad;
+			entry = readdir(dir);
+			/*
+			 * We only want to count thermal zone
+			 */
+			if (entry &&
+			    sscanf(entry->d_name, "thermal_zone%d%c", &num, &pad) == 1 &&
+			    !strchr(entry->d_name, ' ')) {
+				char new_path[PATH_MAX];
+				snprintf(new_path, PATH_MAX, "/sys/devices/virtual/thermal/%s", entry->d_name);
+				parse_master_tempinfo(new_path);
+			}
+		} while (entry);
+	closedir(dir);
+	return 0;
 }
 
 static int init_systeminfo_struct(struct systeminfo *systeminfo)
@@ -183,16 +268,12 @@ static int init_systeminfo_struct(struct systeminfo *systeminfo)
 			}
 		} while (entry);
 
+		closedir(dir);
+
 		if (systeminfo->nr_cpus < 0) {
 			printf("get cpu nums error\n");
 			return -EINVAL;
 		}
-	}
-
-	systeminfo->cpu_rate = (unsigned int *)malloc(systeminfo->nr_cpus * sizeof(unsigned int));
-	if (!systeminfo->cpu_rate) {
-		printf("alloc mem for systeminfo status failed\n");
-		return -ENOMEM;
 	}
 
 	systeminfo->cpufreq = (unsigned int *)malloc(systeminfo->nr_cpus * sizeof(unsigned int));
@@ -220,8 +301,9 @@ static void display_system_info(void)
 	for(i = 0; i < systeminfo.nr_cpus; i++) {
 		for_each_online_cpu(i) {
 			ret = sprintf(line_buf, fmt, i, 0, systeminfo.cpufreq[i],
-					0, 0, 0);
+					systeminfo.cpu_temp, 0, systeminfo.gpu_temp);
 			fputs(line_buf, stdout);
+			fflush(NULL);
 		}
 	}
 }
@@ -248,6 +330,7 @@ int main(int argc, char *argv[])
 	display_header();
 	/* main loop */
 	for(;;) {
+		parse_system_master_temp_info();
 		parse_cpu_info();
 		display_system_info();
 		printf("\n");
