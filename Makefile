@@ -3,6 +3,8 @@ OBJS = $(patsubst %.c, %.o, $(SRCS))
 DEPS = $(SRCS:.c=.dep)
 OUT_BIN = cpu_monitor
 
+#LDFLAGS = -static
+
 all: $(OUT_BIN)
 -include $(DEPS)
 
