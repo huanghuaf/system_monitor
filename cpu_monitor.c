@@ -25,15 +25,15 @@ static struct option opts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-static int interval = 1;	//default 1 seconds
+static int interval = 500;	//default 500 milliseconds
 static int count = 0;		//no limit
 cpumask_t cpu_online_map;	//cpu status, online or offline
-
 static Systeminfo_t systeminfo;
+
 static void usage(void)
 {
 	printf("cpu_monitor 11/16/2021. (c) 2021 huafenghuang/(c).\n\n"
-		"cpu_monitor [-dSECONDS] [-cCOUNT]\n"
+		"cpu_monitor [-dmillisecond] [-cCOUNT]\n"
 		"cpu_monitor -h\n"
 		"-d|--delay                      Set the monitoring period\n"
 		"-c|--count                      Set the monitoring time\n"
@@ -48,12 +48,12 @@ static void parse_command_line(int argc, char **argv)
 		switch(c) {
 			case 'd':
 				if (!optarg) {
-					interval = 1;	// use default value
+					interval = 500;	// use default value
 					break;
 				}
 				interval = atoi(optarg);
 				if (interval < 0)
-					interval = 1;	// use default value
+					interval = 500;	// use default value
 				break;
 			case 'c':
 				if (!optarg) {
@@ -480,20 +480,24 @@ static void destroy_systeminfo_struct()
 static void display_header(void)
 {
 	printf("System info:\n");
-	printf("\tCPU%%\t\tcpufreq(kHz)\t\ttemp\t\tgpufreq(kHz)\t\tgputemp\n");
+	printf("\tCPU%%\t\tcpufreq(kHz)\t\ttemp\t\ttime\n");
 }
 
-static void display_system_info(void)
+static void display_system_info(unsigned int count)
 {
-	static const char fmt[] = "cpu%d\t%s\t\t%12u\t\t%4u\t\t%12u\t\t%4u\n";
+	static const char fmt[] = "cpu%d\t%s\t\t%12u\t\t%4u\t\t%u\n";
 	char line_buf[LINE_BUF_SIZE];
 	int ret;
 	unsigned int i;
 
 	for(i = 0; i < systeminfo.nr_cpus; i++) {
 		for_each_online_cpu(i) {
-			ret = sprintf(line_buf, fmt, i, systeminfo.cpu_rate[i], systeminfo.cpufreq[i],
-					systeminfo.cpu_temp, 0, systeminfo.gpu_temp);
+			ret = sprintf(line_buf, fmt,
+				i,
+				systeminfo.cpu_rate[i],
+				systeminfo.cpufreq[i],
+				systeminfo.cpu_temp,
+				count);
 			fputs(line_buf, stdout);
 			fflush(NULL);
 		}
@@ -503,11 +507,17 @@ static void display_system_info(void)
 int main(int argc, char *argv[])
 {
 	int ret = 0;
+	unsigned int sample_count = 0;
 	struct timespec tv;
 
 	parse_command_line(argc, argv);
-	tv.tv_sec = interval;
-	tv.tv_nsec = 0;
+	if (interval > MSEC_PER_SEC) {
+		tv.tv_sec = interval / MSEC_PER_SEC;
+		interval = interval % MSEC_PER_SEC;
+	} else {
+		tv.tv_sec = 0;
+	}
+	tv.tv_nsec = interval * NSEC_PER_MSEC;
 #ifdef DEBUG
 	printf("interval:%d, count=%d\n", interval, count);
 #endif
@@ -524,7 +534,8 @@ int main(int argc, char *argv[])
 	for(;;) {
 		parse_system_master_temp_info();
 		parse_cpu_info();
-		display_system_info();
+		sample_count++;
+		display_system_info(sample_count);
 		printf("\n");
 		if (count > 0) {
 			if (--count == 0)
