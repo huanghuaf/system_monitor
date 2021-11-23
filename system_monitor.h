@@ -1,5 +1,5 @@
-#ifndef _CPU_MONITOR_H_
-#define _CPU_MONITOR_H_
+#ifndef _SYSTEM_MONITOR_H_
+#define _SYSTEM_MONITOR_H_
 
 #define PATH_MAX	4096	/* # chars in a path name including nul */
 #define CPU_PATH	"/sys/devices/system/cpu"

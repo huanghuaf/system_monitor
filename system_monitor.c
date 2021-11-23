@@ -14,7 +14,7 @@
 #include <time.h>
 
 #include "cpumask.h"
-#include "cpu_monitor.h"
+#include "system_monitor.h"
 
 //#define DEBUG
 

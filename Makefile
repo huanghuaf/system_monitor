@@ -1,7 +1,7 @@
 SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c, %.o, $(SRCS))
 DEPS = $(SRCS:.c=.dep)
-OUT_BIN = cpu_monitor
+OUT_BIN = system_monitor
 
 #LDFLAGS = -static
 
