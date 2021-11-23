@@ -83,7 +83,7 @@ static void get_offline_status(char *line, void *data)
 static void get_cpufreq(char *line, void *data)
 {
 	unsigned int *cpufreq = (unsigned int *)data;
-	*cpufreq = strtoul(line, NULL, 10);
+	*cpufreq = strtoul(line, NULL, 10) / 1000;
 }
 
 static void get_temp(char *line, void *data)
@@ -480,7 +480,7 @@ static void destroy_systeminfo_struct()
 static void display_header(void)
 {
 	printf("System info:\n");
-	printf("\tCPU%%\t\tcpufreq(kHz)\t\ttemp\t\ttime\n");
+	printf("\tCPU%%\t\tcpufreq(MHz)\t\ttemp\t\ttime\n");
 }
 
 static void display_system_info(unsigned int count)
