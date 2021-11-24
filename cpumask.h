@@ -199,17 +199,17 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
 
+#define first_cpu(src) __first_cpu(&(src))
 static inline int __first_cpu(const cpumask_t *srcp)
 {
 	return ffs(*srcp->bits)-1;
 }
 
-#define first_cpu(src) __first_cpu(&(src))
+#define next_cpu(n, src) __next_cpu((n), &(src))
 static inline int __next_cpu(int n, const cpumask_t *srcp)
 {
 	return find_next_bit(cpumask_bits(srcp), NR_CPUS, n + 1);
 }
-#define next_cpu(n, src) __next_cpu((n), &(src))
 
 #define cpumask_of_cpu(cpu)						\
 ({									\

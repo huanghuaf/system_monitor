@@ -43,7 +43,7 @@ Module.symvers
 modules.builtin
 
 *.dep
-cpu_monitor
+system_monitor
 
 #
 # Top-level generic files

@@ -145,7 +145,7 @@ static void parse_online_cpufreq_info(char *path)
 	/* skip offline cpus */
 	snprintf(new_path, ADJ_SIZE(PATH_MAX, path, "/online"), "%s/online", path);
 	ret = process_one_line(new_path, get_offline_status, &offline_status);
-	if (offline_status)
+	if ( ret < 0 || offline_status)
 		return;
 
 	cpu_num = strtoul(&path[27], NULL, 10);
@@ -159,7 +159,9 @@ static void parse_online_cpufreq_info(char *path)
 	ret = process_one_line(new_path, get_cpufreq, &cpufreq);
 	if (ret < 0) {
 		cpufreq = 0;
+#ifdef DEBUG
 		printf("Need to support cpufreq driver\n");
+#endif
 	}
 	systeminfo.cpufreq[cpu_num] = cpufreq;
 #ifdef DEBUG
@@ -197,7 +199,7 @@ static int do_stat()
 	char *line = NULL;
 	ssize_t nread, len;
 	int ret = 0;
-	unsigned int cpu_id = 0;
+	int cpu_id = 0;
 	Jiffy_count_t *p_cur_jiffy = systeminfo.cur_jiffy;
 	Jiffy_count_t *p_prev_jiffy = systeminfo.prev_jiffy;
 	char **p_rate = systeminfo.cpu_rate;
@@ -243,6 +245,9 @@ static int do_stat()
 #ifdef DEBUG
 		printf("cpu_id:%u\n", cpu_id);
 #endif
+		/* reset cpu_online_map here for not support cpufreq */
+		cpu_set(cpu_id, cpu_online_map);
+
 		/*Get all online cpu jify */
 		ret = read_cpu_jiffy(line, &p_cur_jiffy[cpu_id + 1]);
 		if (ret < 0) {
@@ -488,19 +493,17 @@ static void display_system_info(unsigned int count)
 	static const char fmt[] = "cpu%d\t%s\t\t%12u\t\t%4u\t\t%u\n";
 	char line_buf[LINE_BUF_SIZE];
 	int ret;
-	unsigned int i;
+	int i;
 
-	for(i = 0; i < systeminfo.nr_cpus; i++) {
-		for_each_online_cpu(i) {
-			ret = sprintf(line_buf, fmt,
-				i,
-				systeminfo.cpu_rate[i],
-				systeminfo.cpufreq[i],
-				systeminfo.cpu_temp,
-				count);
-			fputs(line_buf, stdout);
-			fflush(NULL);
-		}
+	for_each_online_cpu(i) {
+		ret = sprintf(line_buf, fmt,
+			i,
+			systeminfo.cpu_rate[i],
+			systeminfo.cpufreq[i],
+			systeminfo.cpu_temp,
+			count);
+		fputs(line_buf, stdout);
+		fflush(NULL);
 	}
 }
 

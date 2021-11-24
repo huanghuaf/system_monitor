@@ -30,7 +30,7 @@ static inline unsigned int hweight32(unsigned int w)
 
 static inline unsigned long hweight64(uint64_t w)
 {
-	if (BITS_PER_LONG == 32) 
+	if (BITS_PER_LONG == 32)
 	        return hweight32((unsigned int)(w >> 32)) + hweight32((unsigned int)w);
 
         w -= (w >> 1) & 0x5555555555555555ull;
@@ -79,12 +79,12 @@ static __always_inline unsigned long __ffs(unsigned long word)
 {
 	int num = 0;
 
-#if __BITS_PER_LONG == 64
-	if ((word & 0xffffffff) == 0) {
-		num += 32;
-		word >>= 32;
+	if (BITS_PER_LONG == 64) {
+		if ((word & 0xffffffff) == 0) {
+			num += 32;
+			word >>= 32;
+		}
 	}
-#endif
 	if ((word & 0xffff) == 0) {
 		num += 16;
 		word >>= 16;
